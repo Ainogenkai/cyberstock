@@ -1,0 +1,16 @@
+# 赛博多人股市 - Apache 运行时配置
+# 注意: 此文件中禁止书写 AllowOverride (该指令仅允许出现在服务器主配置中, 写在这里会导致全站 500)
+Options -Indexes +FollowSymLinks
+Require all granted
+
+# 设置字符集与时区
+AddDefaultCharset UTF-8
+<IfModule mod_php.c>
+    php_value date.timezone Asia/Shanghai
+    php_value memory_limit 256M
+</IfModule>
+
+# 安全加固: 禁止下载敏感文件 (SQL 结构含密码哈希, mcp_kurumi.py 含默认口令)
+<FilesMatch "\.(sql|py|md|sh|log|bak|ini|env|lock|json)$">
+    Require all denied
+</FilesMatch>

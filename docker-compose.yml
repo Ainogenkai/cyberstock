@@ -1,0 +1,70 @@
+services:
+  # 1. PostgreSQL 关系型数据库 (持久化、高安全性)
+  postgres:
+    image: postgres:16-alpine
+    container_name: cyberstock-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_NAME:-cyberstock}
+      POSTGRES_USER: ${DB_USER:-cyberstock_user}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-CyberStockPass_2026!}
+      PGTZ: Asia/Shanghai
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    # 数据库端口不直接暴露到宿主机，仅在内部容器网络互通，保障安全
+    networks:
+      - cyberstock-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-cyberstock_user} -d ${DB_NAME:-cyberstock}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # 2. PHP 应用程序与静态前端容器 (Apache + PHP 8.2 + PDO-pgSQL)
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: cyberstock-app
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME:-cyberstock}
+      DB_USER: ${DB_USER:-cyberstock_user}
+      DB_PASSWORD: ${DB_PASSWORD:-CyberStockPass_2026!}
+      APP_SECRET: ${APP_SECRET:-CyberStock_Super_Secret_Key_Change_Me_2026}
+      APP_ENV: ${APP_ENV:-production}
+      INITIAL_FUND: ${INITIAL_FUND:-1000000}
+      # MCP (久留美) 容器内访问本机 Apache 的地址 (Apache 监听 80, 而非宿主机映射的 8080)
+      CYBERSTOCK_URL: http://127.0.0.1:80
+      # 久留美注册兜底邀请码 (与 .env 的 DEFAULT_INVITE_CODE 保持一致)
+      DEFAULT_INVITE_CODE: ${DEFAULT_INVITE_CODE:-CYBER666}
+      # MCP 端点鉴权密钥 (AstrBot headers 携带同值; 留空则无鉴权仅限调试)
+      MCP_API_KEY: ${MCP_API_KEY:-}
+      # 久留美账号密码 (建库种子与 MCP 登录共用, 改 .env 即生效于新库)
+      KURUMI_PASSWORD: ${KURUMI_PASSWORD:-KurumiFX2026!}
+      TZ: Asia/Shanghai
+    volumes:
+      - ./src:/var/www/html
+      # MCP 云端服务脚本 (Streamable HTTP 单端点 /mcp, Dockerfile CMD 启动它，必须挂载进容器)
+      - ./mcp_kurumi.py:/var/www/html/mcp_kurumi.py:ro
+      - ./VERSION:/var/www/html/VERSION:ro
+    ports:
+      # 对外仅暴露 Web 端口，由 1Panel / OpenResty 反向代理至此端口
+      - "${WEB_PORT:-8080}:80"
+    networks:
+      - cyberstock-net
+
+networks:
+  cyberstock-net:
+    driver: bridge
+
+volumes:
+  # 持久化卷：即使容器重建、更新镜像，账号、持仓、成交与行情数据绝不丢失
+  postgres_data:
+    name: cyberstock_pgdata

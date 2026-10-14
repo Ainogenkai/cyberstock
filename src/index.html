@@ -1,0 +1,821 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+    <title>股市模拟器 - 纯娱乐版</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div id="app">
+        <!-- 登录/注册界面 -->
+        <div id="auth-screen" class="screen active">
+            <div class="auth-container">
+                <h1><span class="logo-icon">📈</span><span class="logo-text" data-i18n="app.title">股市模拟器</span></h1>
+                <p class="subtitle" data-i18n="app.subtitle">纯娱乐 · 零压力 · 模拟炒股</p>
+                
+                <!-- 登录页右上角语言切换按钮 -->
+                <button id="auth-lang-toggle" class="icon-btn lang-toggle-btn" title="Switch Language / 切换语言">🌐</button>
+                
+                <div class="auth-tabs">
+                    <button class="tab-btn active" data-tab="login" data-i18n="auth.loginTab">登录</button>
+                    <button class="tab-btn" data-tab="register" data-i18n="auth.registerTab">注册</button>
+                </div>
+                
+                <div id="login-form" class="auth-form active">
+                    <input type="text" id="login-username" placeholder="用户名" data-i18n-placeholder="auth.usernamePlaceholder">
+                    <input type="password" id="login-password" placeholder="密码" data-i18n-placeholder="auth.passwordPlaceholder">
+                    <button type="button" id="login-btn" class="btn-primary" data-i18n="auth.loginBtn">登录</button>
+                    <div id="login-error" class="error-msg"></div>
+                </div>
+                
+                <div id="register-form" class="auth-form">
+                    <input type="text" id="reg-username" placeholder="用户名 (2-20位)" data-i18n-placeholder="auth.regUsernamePlaceholder">
+                    <input type="password" id="reg-password" placeholder="密码 (6-20位)" data-i18n-placeholder="auth.regPasswordPlaceholder">
+                    <input type="password" id="reg-confirm" placeholder="确认密码" data-i18n-placeholder="auth.regConfirmPlaceholder">
+                    <input type="text" id="reg-invite-code" placeholder="内测邀请码 (默认 CYBER666)" data-i18n-placeholder="auth.regInvitePlaceholder">
+                    <button type="button" id="register-btn" class="btn-primary" data-i18n="auth.registerBtn">注册</button>
+                    <div id="reg-error" class="error-msg"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 主游戏界面 -->
+        <div id="main-screen" class="screen">
+            <!-- 顶部导航 -->
+            <header class="main-header">
+                <div class="logo"><span class="logo-icon">📈</span><span class="logo-text" data-i18n="app.title">股市模拟器</span></div>
+                <nav class="main-nav">
+                    <button class="nav-btn active" data-page="market" data-i18n="nav.market">行情</button>
+                    <button class="nav-btn" data-page="trade" data-i18n="nav.trade">交易</button>
+                    <button class="nav-btn" data-page="auto-trade" data-i18n="nav.autoTrade">自动交易</button>
+                    <button class="nav-btn" data-page="portfolio" data-i18n="nav.portfolio">持仓</button>
+                    <button class="nav-btn" data-page="profile" data-i18n="nav.profile">我的</button>
+                    <button class="nav-btn" data-page="events" id="nav-events-btn">全服异动</button>
+                    <button class="nav-btn" data-page="admin" id="nav-admin-btn" style="display:none;">管理后台</button>
+                </nav>
+                <div class="header-actions">
+                    <button id="theme-toggle" class="icon-btn">🌙</button>
+                    <button id="settings-btn" class="icon-btn">⚙️</button>
+                </div>
+            </header>
+            <!-- 全服市场异动与现实资讯滚动横幅 -->
+            <div class="event-banner">
+                <span class="event-badge">全服快讯</span>
+                <div class="event-ticker" id="event-ticker-text">正在连接赛博股市多人共享行情服务器...</div>
+            </div>
+
+            <!-- 行情页面 -->
+            <div id="market-page" class="page active">
+                <div class="market-container">
+                    <div class="market-sidebar">
+                        <div class="search-box">
+                            <input type="text" id="stock-search" placeholder="搜索股票代码/名称" data-i18n-placeholder="market.searchPlaceholder">
+                        </div>
+                        <div class="market-sidebar-actions">
+                            <button id="watchlist-toggle-btn" class="btn-watchlist" data-i18n="market.watchlistView">查看自选</button>
+                            <button id="reset-kline-btn" class="btn-watchlist btn-reset-kline" title="重置K线" data-i18n-title="market.resetKline" data-i18n-aria-label="market.resetKline" data-i18n="market.resetKline">🔄 重置K线</button>
+                        </div>
+                        <div class="stock-list-header">
+                            <span class="sortable" data-sort="name"><span data-i18n="market.colName">股票</span><span class="sort-indicator"></span></span>
+                            <span class="sortable" data-sort="price"><span data-i18n="market.colPrice">最新价</span><span class="sort-indicator"></span></span>
+                            <span class="sortable" data-sort="change"><span data-i18n="market.colChange">涨跌幅</span><span class="sort-indicator"></span></span>
+                        </div>
+                        <div id="stock-list" class="stock-list"></div>
+                    </div>
+                    <div class="market-main">
+                        <div id="stock-detail" class="stock-detail">
+                            <div class="detail-header">
+                                <div class="stock-info">
+                                    <h2 id="detail-name">--</h2>
+                                    <span id="detail-code">--</span>
+                                </div>
+                                <div class="stock-price">
+                                    <span id="detail-price" class="price">--</span>
+                                    <div class="price-change-container">
+                                        <span id="detail-change" class="change">--</span>
+                                    </div>
+                                </div>
+                                <div class="limit-price-info">
+                                    <span><span data-i18n="market.limitUp">涨停: </span><span id="limit-up-price" class="price up">--</span></span>
+                                    <span><span data-i18n="market.limitDown">跌停: </span><span id="limit-down-price" class="price down">--</span></span>
+                                </div>
+                                <div class="market-time-info">
+                                    <span id="market-time" class="time">--:--</span>
+                                    <span id="market-status" class="status">--</span>
+                                </div>
+                            </div>
+                            <!-- 盘口多空与流通盘锁仓实时看板 -->
+                            <div class="market-sentiment-strip" style="display:flex; justify-content:space-between; align-items:center; background:rgba(0,0,0,0.25); border:1px solid rgba(255,255,255,0.08); padding:8px 14px; border-radius:6px; margin: 8px 0; font-size:13px; flex-wrap:wrap; gap:8px;">
+                                <span>总流通盘: <strong id="detail-total-shares">--</strong></span>
+                                <span>群友锁仓: <strong id="detail-held-shares" style="color:#28a745;">--</strong> (<span id="detail-lockup-ratio">0%</span>)</span>
+                                <span>剩余可买: <strong id="detail-avail-shares" style="color:#17a2b8;">--</strong></span>
+                                <span>融券池剩余: <strong id="detail-avail-short" style="color:#fd7e14;">--</strong> / <span id="detail-max-short">--</span></span>
+                                <span id="detail-squeeze-badge" style="display:none; padding:2px 8px; border-radius:4px; font-size:11px; font-weight:bold; background:#dc3545; color:#fff;">⚠️ 逼空警戒</span>
+                            </div>
+                            <div class="detail-chart">
+                                <div class="chart-toolbar">
+                                    <button id="chart-zoom-in" class="chart-btn" title="放大" data-i18n-title="market.chartZoomIn" data-i18n-aria-label="market.chartZoomIn">
+                                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="21" y2="21"/><line x1="8" y1="11" x2="14" y2="11"/><line x1="11" y1="8" x2="11" y2="14"/></svg>
+                                    </button>
+                                    <button id="chart-zoom-out" class="chart-btn" title="缩小" data-i18n-title="market.chartZoomOut" data-i18n-aria-label="market.chartZoomOut">
+                                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="21" y2="21"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
+                                    </button>
+                                    <button id="chart-reset" class="chart-btn" title="重置" data-i18n-title="market.chartReset" data-i18n-aria-label="market.chartReset">
+                                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+                                    </button>
+                                    <span class="chart-hint" data-i18n="market.chartHint">滚轮缩放 | 拖拽移动 | 框选放大</span>
+                                </div>
+                                <div class="chart-container">
+                                    <canvas id="kline-canvas"></canvas>
+                                </div>
+                                <div class="volume-chart-container">
+                                    <canvas id="volume-canvas"></canvas>
+                                </div>
+                            </div>
+                            <div class="detail-quote">
+                                <div class="quote-col">
+                                    <div class="quote-item"><span data-i18n="market.ask5">卖五</span><span id="ask5-price" class="price">--</span><span id="ask5-vol">--</span></div>
+                                    <div class="quote-item"><span data-i18n="market.ask4">卖四</span><span id="ask4-price" class="price">--</span><span id="ask4-vol">--</span></div>
+                                    <div class="quote-item"><span data-i18n="market.ask3">卖三</span><span id="ask3-price" class="price">--</span><span id="ask3-vol">--</span></div>
+                                    <div class="quote-item"><span data-i18n="market.ask2">卖二</span><span id="ask2-price" class="price">--</span><span id="ask2-vol">--</span></div>
+                                    <div class="quote-item"><span data-i18n="market.ask1">卖一</span><span id="ask1-price" class="price">--</span><span id="ask1-vol">--</span></div>
+                                </div>
+                                <div class="quote-col">
+                                    <div class="quote-item"><span data-i18n="market.bid1">买一</span><span id="bid1-price" class="price">--</span><span id="bid1-vol">--</span></div>
+                                    <div class="quote-item"><span data-i18n="market.bid2">买二</span><span id="bid2-price" class="price">--</span><span id="bid2-vol">--</span></div>
+                                    <div class="quote-item"><span data-i18n="market.bid3">买三</span><span id="bid3-price" class="price">--</span><span id="bid3-vol">--</span></div>
+                                    <div class="quote-item"><span data-i18n="market.bid4">买四</span><span id="bid4-price" class="price">--</span><span id="bid4-vol">--</span></div>
+                                    <div class="quote-item"><span data-i18n="market.bid5">买五</span><span id="bid5-price" class="price">--</span><span id="bid5-vol">--</span></div>
+                                </div>
+                            </div>
+                            <div class="detail-actions">
+                                <button id="quick-buy-btn" class="btn-buy" data-i18n="common.buy">买入</button>
+                                <button id="quick-sell-btn" class="btn-sell" data-i18n="common.sell">卖出</button>
+                                <button id="add-watch-btn" class="btn-secondary" data-i18n="market.addWatch">+自选</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 交易页面 -->
+            <div id="trade-page" class="page">
+                <div class="trade-container">
+                    <div class="trade-panel">
+                        <div class="trade-tabs">
+                            <button class="trade-tab active" data-trade="buy" data-i18n="trade.buyTab">买入</button>
+                            <button class="trade-tab" data-trade="sell" data-i18n="trade.sellTab">卖出</button>
+                            <button class="trade-tab" data-trade="short-open">融券开空</button>
+                            <button class="trade-tab" data-trade="short-close">买券平空</button>
+                        </div>
+                        
+                        <div id="buy-panel" class="trade-form active">
+                            <div class="form-row">
+                                <label data-i18n="trade.stockCode">股票代码</label>
+                                <input type="text" id="buy-code" placeholder="输入代码" maxlength="6" data-i18n-placeholder="trade.codePlaceholder">
+                                <span id="buy-name" class="stock-name-tip"></span>
+                            </div>
+                            <div class="form-row">
+                                <label data-i18n="trade.buyPrice">买入价格</label>
+                                <input type="number" id="buy-price" step="0.01">
+                            </div>
+                            <div class="form-row">
+                                <label data-i18n="trade.buyQuantity">买入数量</label>
+                                <input type="number" id="buy-quantity" min="1">
+                                <div class="quantity-btns">
+                                    <button data-ratio="0.25" data-i18n="quantity.quarter">1/4</button>
+                                    <button data-ratio="0.5" data-i18n="quantity.half">1/2</button>
+                                    <button data-ratio="1" data-i18n="quantity.full">全仓</button>
+                                </div>
+                            </div>
+                            <div class="form-row info-row">
+                                <span><span data-i18n="trade.availableFund">可用资金: </span><b id="buy-available">--</b></span>
+                                <span><span data-i18n="trade.estimateAmount">预估金额: </span><b id="buy-estimate">--</b></span>
+                            </div>
+                            <button id="confirm-buy-btn" class="btn-buy btn-large" data-i18n="common.buy">买入</button>
+                        </div>
+
+                        <div id="sell-panel" class="trade-form">
+                            <div class="form-row">
+                                <label data-i18n="trade.stockCode">股票代码</label>
+                                <input type="text" id="sell-code" placeholder="输入代码" maxlength="6" data-i18n-placeholder="trade.codePlaceholder">
+                                <span id="sell-name" class="stock-name-tip"></span>
+                            </div>
+                            <div class="form-row">
+                                <label data-i18n="trade.sellPrice">卖出价格</label>
+                                <input type="number" id="sell-price" step="0.01">
+                            </div>
+                            <div class="form-row">
+                                <label data-i18n="trade.sellQuantity">卖出数量</label>
+                                <input type="number" id="sell-quantity" min="1">
+                                <div class="quantity-btns">
+                                    <button data-ratio="0.25" data-i18n="quantity.quarter">1/4</button>
+                                    <button data-ratio="0.5" data-i18n="quantity.half">1/2</button>
+                                    <button data-ratio="1" data-i18n="quantity.full">全仓</button>
+                                </div>
+                            </div>
+                            <div class="form-row info-row">
+                                <span><span data-i18n="trade.availableQuantity">可卖数量: </span><b id="sell-available">--</b></span>
+                                <span><span data-i18n="trade.estimateAmount">预估金额: </span><b id="sell-estimate">--</b></span>
+                            </div>
+                            <button id="confirm-sell-btn" class="btn-sell btn-large" data-i18n="common.sell">卖出</button>
+                        </div>
+
+                        <div id="short-open-panel" class="trade-form">
+                            <div class="form-row">
+                                <label>股票代码</label>
+                                <input type="text" id="short-open-code" placeholder="输入代码" maxlength="6">
+                                <span id="short-open-name" class="stock-name-tip"></span>
+                            </div>
+                            <div class="form-row">
+                                <label>开空现价</label>
+                                <input type="number" id="short-open-price" step="0.01" readonly>
+                            </div>
+                            <div class="form-row">
+                                <label>开空数量 (股)</label>
+                                <input type="number" id="short-open-quantity" min="1" value="100">
+                                <div class="quantity-btns">
+                                    <button type="button" class="short-ratio-btn" data-ratio="0.25">1/4</button>
+                                    <button type="button" class="short-ratio-btn" data-ratio="0.5">1/2</button>
+                                    <button type="button" class="short-ratio-btn" data-ratio="1">全仓</button>
+                                </div>
+                            </div>
+                            <div class="form-row info-row">
+                                <span>可用资金: <b id="short-open-available">--</b></span>
+                                <span>所需保证金: <b id="short-open-estimate">--</b></span>
+                            </div>
+                            <button id="confirm-short-open-btn" class="btn-large" style="background-color:#a371f7; color:#fff;">融券开空</button>
+                        </div>
+
+                        <div id="short-close-panel" class="trade-form">
+                            <div class="form-row">
+                                <label>股票代码</label>
+                                <input type="text" id="short-close-code" placeholder="输入代码" maxlength="6">
+                                <span id="short-close-name" class="stock-name-tip"></span>
+                            </div>
+                            <div class="form-row">
+                                <label>平仓现价</label>
+                                <input type="number" id="short-close-price" step="0.01" readonly>
+                            </div>
+                            <div class="form-row">
+                                <label>平仓数量 (股)</label>
+                                <input type="number" id="short-close-quantity" min="1" value="100">
+                            </div>
+                            <div class="form-row info-row">
+                                <span>持有空单: <b id="short-close-available">--</b></span>
+                                <span>预估还券款: <b id="short-close-estimate">--</b></span>
+                            </div>
+                            <button id="confirm-short-close-btn" class="btn-sell btn-large">买券平仓</button>
+                        </div>
+                    </div>
+
+                    <div class="trade-holdings">
+                        <div class="trade-holdings-header">
+                            <h3 data-i18n="portfolio.holdingsTitle">当前持仓</h3>
+                            <div class="portfolio-time-display">
+                                <span id="portfolio-time" class="portfolio-time">--:--</span>
+                                <span id="portfolio-status" class="portfolio-status">--</span>
+                            </div>
+                        </div>
+                        <div id="trade-holdings-list" class="holdings-list"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 自动交易页面 -->
+            <div id="auto-trade-page" class="page">
+                <div class="auto-trade-container">
+                    <div class="auto-trade-panel">
+                        <div class="auto-trade-header">
+                            <h2 data-i18n="auto.title">自动交易设置</h2>
+                            <div class="auto-trade-status">
+                                <span id="auto-trade-status-text" data-i18n="auto.statusStopped">未启动</span>
+                                <div id="auto-trade-status-indicator" class="status-indicator"></div>
+                            </div>
+                        </div>
+
+                        <div class="auto-trade-tabs">
+                            <button class="auto-trade-tab active" data-tab="condition" data-i18n="auto.tabCondition">触发条件</button>
+                            <button class="auto-trade-tab" data-tab="risk" data-i18n="auto.tabRisk">风险控制</button>
+                            <button class="auto-trade-tab" data-tab="history" data-i18n="auto.tabHistory">交易记录</button>
+                        </div>
+
+                        <div id="condition-panel" class="auto-trade-form active">
+                            <!-- 已添加股票列表 -->
+                            <div class="auto-trade-stock-list">
+                                <div class="auto-trade-header">
+                                    <h4 data-i18n="auto.stockListTitle">自动交易股票列表</h4>
+                                    <button id="reset-auto-trade-config-btn" class="btn-small btn-secondary" data-i18n="auto.resetConfig">🔄 重置配置</button>
+                                </div>
+                                <div id="auto-trade-stocks-container">
+                                    <p class="empty-tip" data-i18n="auto.emptyTip">暂无股票，请添加</p>
+                                </div>
+                            </div>
+                            
+                            <!-- 添加股票表单 -->
+                            <div class="add-stock-form">
+                                <h4 data-i18n="auto.addStockTitle">添加股票</h4>
+                                <div class="form-row">
+                                    <label data-i18n="trade.stockCode">股票代码</label>
+                                    <input type="text" id="auto-code" placeholder="输入代码" maxlength="6" data-i18n-placeholder="trade.codePlaceholder">
+                                    <span id="auto-name" class="stock-name-tip"></span>
+                                </div>
+                                <div class="form-row">
+                                    <label data-i18n="auto.direction">交易方向</label>
+                                    <div class="radio-group">
+                                        <label class="radio-label">
+                                            <input type="radio" name="auto-direction" value="buy" checked>
+                                            <span data-i18n="common.buy">买入</span>
+                                        </label>
+                                        <label class="radio-label">
+                                            <input type="radio" name="auto-direction" value="sell">
+                                            <span data-i18n="common.sell">卖出</span>
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="form-row">
+                                    <label data-i18n="auto.conditionType">触发条件类型</label>
+                                    <select id="auto-condition-type">
+                                        <option value="price" data-i18n="auto.conditionTypePrice">价格阈值</option>
+                                        <option value="percentage" data-i18n="auto.conditionTypePercentage">涨跌幅</option>
+                                        <option value="profit" data-i18n="auto.conditionTypeProfit">盈利目标</option>
+                                        <option value="time" data-i18n="auto.conditionTypeTime">时间间隔</option>
+                                    </select>
+                                </div>
+                                <div class="form-row">
+                                    <label data-i18n="auto.condition">触发条件</label>
+                                    <div class="condition-input-group">
+                                        <select id="auto-condition-operator">
+                                            <option value="above" data-i18n="auto.operatorAbove">高于</option>
+                                            <option value="below" data-i18n="auto.operatorBelow">低于</option>
+                                            <option value="equal" data-i18n="auto.operatorEqual">等于</option>
+                                        </select>
+                                        <input type="number" id="auto-condition-value" step="0.01" placeholder="输入值" data-i18n-placeholder="auto.conditionValuePlaceholder">
+                                    </div>
+                                </div>
+                                <div class="form-row">
+                                    <label data-i18n="auto.quantity">交易数量</label>
+                                    <input type="number" id="auto-quantity" min="1" placeholder="输入数量" data-i18n-placeholder="auto.quantityPlaceholder">
+                                    <div class="quantity-btns">
+                                        <button data-ratio="0.25" data-i18n="quantity.quarter">1/4</button>
+                                        <button data-ratio="0.5" data-i18n="quantity.half">1/2</button>
+                                        <button data-ratio="1" data-i18n="quantity.full">全仓</button>
+                                    </div>
+                                </div>
+                                <div class="form-row">
+                                    <label data-i18n="auto.priceType">交易价格</label>
+                                    <select id="auto-price-type">
+                                        <option value="market" data-i18n="auto.priceMarket">市价</option>
+                                        <option value="limit" data-i18n="auto.priceLimit">限价</option>
+                                    </select>
+                                    <input type="number" id="auto-limit-price" step="0.01" placeholder="限价" disabled data-i18n-placeholder="auto.limitPricePlaceholder">
+                                </div>
+                                <div class="form-row">
+                                    <button id="add-auto-stock-btn" class="btn-secondary" data-i18n="auto.addStockBtn">添加股票</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="risk-panel" class="auto-trade-form">
+                            <div class="form-row">
+                                <label data-i18n="auto.stopLoss">止损金额</label>
+                                <input type="number" id="auto-stop-loss" step="0.01" placeholder="输入止损金额（正数或负数）" data-i18n-placeholder="auto.stopLossPlaceholder">
+                                <small class="form-hint" data-i18n="auto.stopLossHint">亏损金额达到该阈值时卖出，如：100 或 -100，留空则不设置</small>
+                            </div>
+                            <div class="form-row">
+                                <label data-i18n="auto.takeProfit">止盈金额</label>
+                                <input type="number" id="auto-take-profit" step="0.01" placeholder="输入止盈金额（正数）" data-i18n-placeholder="auto.takeProfitPlaceholder">
+                                <small class="form-hint" data-i18n="auto.takeProfitHint">盈利金额达到该值时卖出，留空则不设置</small>
+                            </div>
+                            <div class="form-row">
+                                <label data-i18n="auto.maxAmount">单次最大金额</label>
+                                <input type="number" id="auto-max-amount" min="1000" step="1000" placeholder="输入金额" data-i18n-placeholder="auto.maxAmountPlaceholder">
+                                <small class="form-hint" data-i18n="auto.maxAmountHint">留空则不限制</small>
+                            </div>
+                            <div class="form-row warning-row">
+                                <label class="warning-label" data-i18n="auto.warningTitle">⚠️ 风险提示</label>
+                                <p class="warning-text" data-i18n="auto.warningText">自动交易可能造成资金损失，请谨慎设置触发条件和风险控制参数。建议先在模拟环境中测试策略。</p>
+                            </div>
+                        </div>
+
+                        <div id="history-panel" class="auto-trade-form">
+                            <div class="auto-trade-stats">
+                                <div class="stat-item">
+                                    <span class="stat-label" data-i18n="auto.statTotalTrades">总交易次数</span>
+                                    <span id="auto-total-trades" class="stat-value">0</span>
+                                </div>
+                                <div class="stat-item">
+                                    <span class="stat-label" data-i18n="auto.statSuccess">成功次数</span>
+                                    <span id="auto-success-trades" class="stat-value">0</span>
+                                </div>
+                                <div class="stat-item">
+                                    <span class="stat-label" data-i18n="auto.statFailed">失败次数</span>
+                                    <span id="auto-failed-trades" class="stat-value">0</span>
+                                </div>
+                                <div class="stat-item">
+                                    <span class="stat-label" data-i18n="auto.statTotalPnl">总盈亏</span>
+                                    <span id="auto-total-pnl" class="stat-value">¥0</span>
+                                </div>
+                            </div>
+                            <div class="auto-trade-records">
+                                <h4 data-i18n="auto.recordsTitle">交易记录</h4>
+                                <div id="auto-trade-records-list" class="records-list"></div>
+                            </div>
+                        </div>
+
+                        <div class="auto-trade-actions">
+                            <button id="start-auto-trade-btn" class="btn-primary" data-i18n="auto.start">启动自动交易</button>
+                            <button id="pause-auto-trade-btn" class="btn-warning" disabled data-i18n="auto.pause">暂停</button>
+                            <button id="stop-auto-trade-btn" class="btn-danger" disabled data-i18n="auto.stop">清空</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 持仓页面 -->
+            <div id="portfolio-page" class="page">
+                <div class="portfolio-container">
+                    <div class="portfolio-summary">
+                        <div class="summary-card">
+                            <span class="label" data-i18n="portfolio.totalAssets">总资产</span>
+                            <span id="total-assets" class="value">--</span>
+                        </div>
+                        <div class="summary-card">
+                            <span class="label" data-i18n="portfolio.totalValue">总市值</span>
+                            <span id="stock-value" class="value">--</span>
+                        </div>
+                        <div class="summary-card">
+                            <span class="label" data-i18n="portfolio.availableFund">可用资金</span>
+                            <span id="available-fund" class="value">--</span>
+                        </div>
+                        <div class="summary-card">
+                            <span class="label" data-i18n="portfolio.floatingPnl">浮动盈亏</span>
+                            <span id="floating-pnl" class="value">--</span>
+                        </div>
+                        <div class="summary-card">
+                            <span class="label" data-i18n="portfolio.totalReturn">总收益率</span>
+                            <span id="total-return" class="value">--</span>
+                        </div>
+                    </div>
+                    <!-- 社区扶持与破产重组低保区 -->
+                    <div class="faucet-actions-bar" style="display:flex; gap:16px; align-items:center; margin: 16px 0; background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.08); padding:12px 18px; border-radius:8px;">
+                        <button id="daily-checkin-btn" class="btn-primary" style="background:#28a745; border:none; padding:8px 18px; border-radius:6px; cursor:pointer; font-weight:600; font-size:14px; transition:0.2s;">
+                            🎁 每日签到 (+¥50,000)
+                        </button>
+                        <button id="bankruptcy-bailout-btn" class="btn-danger" style="background:#dc3545; border:none; padding:8px 18px; border-radius:6px; cursor:pointer; font-weight:600; font-size:14px; transition:0.2s;">
+                            🆘 破产救助申请 (¥200,000)
+                        </button>
+                        <span id="faucet-status-tip" style="font-size:13px; color:#aaa; margin-left:auto;">
+                            💡 签到每日一次；当总资产低于 1 万元时可申请破产低保重返股市。
+                        </span>
+                    </div>
+                    <div class="portfolio-holdings">
+                        <h3 data-i18n="portfolio.holdingsTitle">持仓明细</h3>
+                        <table class="holdings-table">
+                            <thead>
+                                <tr>
+                                    <th data-i18n="portfolio.colStock">股票</th>
+                                    <th data-i18n="portfolio.colQuantity">持仓</th>
+                                    <th data-i18n="portfolio.colCostPrice">成本价</th>
+                                    <th data-i18n="portfolio.colCurrentPrice">现价</th>
+                                    <th data-i18n="portfolio.colMarketValue">市值</th>
+                                    <th data-i18n="portfolio.colPnl">盈亏</th>
+                                    <th data-i18n="portfolio.colPnlRate">盈亏率</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody id="portfolio-holdings-tbody"></tbody>
+                        </table>
+                    </div>
+                    <div class="portfolio-holdings" style="margin-top:20px;">
+                        <h3>融券做空持仓 (Short Positions)</h3>
+                        <table class="holdings-table">
+                            <thead>
+                                <tr>
+                                    <th>股票</th>
+                                    <th>做空股数</th>
+                                    <th>开空均价</th>
+                                    <th>当前现价</th>
+                                    <th>锁定保证金</th>
+                                    <th>空头浮动盈亏</th>
+                                    <th>维持担保比例 (强平线)</th>
+                                    <th>快捷平仓</th>
+                                </tr>
+                            </thead>
+                            <tbody id="portfolio-short-tbody">
+                                <tr><td colspan="8" style="text-align:center; color:var(--text-muted);">暂无空头持仓</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="portfolio-records">
+                        <h3 data-i18n="portfolio.recordsTitle">成交记录</h3>
+                        <table class="records-table">
+                            <thead>
+                                <tr>
+                                    <th data-i18n="portfolio.colTime">时间</th>
+                                    <th data-i18n="portfolio.colStock">股票</th>
+                                    <th data-i18n="portfolio.colDirection">方向</th>
+                                    <th data-i18n="portfolio.colPrice">价格</th>
+                                    <th data-i18n="portfolio.colQuantity2">数量</th>
+                                    <th data-i18n="portfolio.colAmount">金额</th>
+                                </tr>
+                            </thead>
+                            <tbody id="trade-records-tbody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 个人主页 -->
+            <div id="profile-page" class="page">
+                <div class="profile-container">
+                    <div class="profile-header">
+                        <div class="avatar">👤</div>
+                        <div class="user-info">
+                            <h2 id="profile-username">--</h2>
+                            <p><span data-i18n="profile.regTime">注册时间: </span><span id="reg-time">--</span></p>
+                        </div>
+                        <div class="profile-stats">
+                            <div class="stat-item">
+                                <span class="stat-value" id="stat-games">0</span>
+                                <span class="stat-label" data-i18n="profile.statGames">局数</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-value" id="stat-trades">0</span>
+                                <span class="stat-label" data-i18n="profile.statTrades">交易</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-value" id="stat-achievements">0</span>
+                                <span class="stat-label" data-i18n="profile.statAchievements">成就</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="achievements-section">
+                        <h3 data-i18n="profile.achievementWall">🏆 成就墙</h3>
+                        <div class="achievement-stats">
+                            <div class="achievement-level">
+                                <span class="level bronze" data-i18n="profile.levelBronze">青铜</span>
+                                <span id="count-bronze">0</span>
+                            </div>
+                            <div class="achievement-level">
+                                <span class="level silver" data-i18n="profile.levelSilver">白银</span>
+                                <span id="count-silver">0</span>
+                            </div>
+                            <div class="achievement-level">
+                                <span class="level gold" data-i18n="profile.levelGold">黄金</span>
+                                <span id="count-gold">0</span>
+                            </div>
+                            <div class="achievement-level">
+                                <span class="level legend" data-i18n="profile.levelLegend">传说</span>
+                                <span id="count-legend">0</span>
+                            </div>
+                        </div>
+                        <div id="achievements-list" class="achievements-list"></div>
+                        <button id="toggle-achievements-btn" class="btn-toggle-achievements" data-i18n="profile.expandAll">
+                            展开全部
+                        </button>
+                    </div>
+
+                    <div class="profile-actions">
+                        <button id="change-password-btn" class="btn-primary" data-i18n="profile.changePassword">修改密码</button>
+                        <button id="logout-btn" class="btn-secondary" data-i18n="profile.logout">退出登录</button>
+                        <button id="delete-account-btn" class="btn-secondary btn-danger" data-i18n="profile.deleteAccount">注销账户</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 全服市场异动页面 -->
+            <div id="events-page" class="page">
+                <div class="portfolio-container" style="max-width:900px; margin:0 auto;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+                        <h2>📢 全服市场异动与现实关联事件</h2>
+                        <button class="btn-secondary btn-small" id="refresh-events-btn">刷新事件</button>
+                    </div>
+                    <div id="events-feed-list"></div>
+                </div>
+            </div>
+
+            <!-- 社群管理后台页面 -->
+            <div id="admin-page" class="page">
+                <div class="portfolio-container" style="max-width:1100px; margin:0 auto;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+                        <h2>⚙️ 社群管理后台</h2>
+                        <div style="display:flex; gap:10px;">
+                            <button class="btn-secondary" id="admin-pause-market-btn">暂停 / 恢复市场模拟</button>
+                            <button class="btn-primary" id="admin-create-invite-btn">+ 创建新邀请码</button>
+                        </div>
+                    </div>
+                    <div class="portfolio-holdings" style="margin-bottom:24px;">
+                        <h3>🎟️ 邀请码管理</h3>
+                        <table class="holdings-table">
+                            <thead>
+                                <tr><th>邀请码</th><th>已用 / 上限</th><th>状态</th><th>备注</th><th>操作</th></tr>
+                            </thead>
+                            <tbody id="admin-invite-table-body"></tbody>
+                        </table>
+                    </div>
+                    <div class="portfolio-holdings">
+                        <h3>👥 玩家账户与资金调控</h3>
+                        <table class="holdings-table">
+                            <thead>
+                                <tr><th>UID</th><th>用户名</th><th>角色</th><th>可用余额</th><th>锁定保证金</th><th>状态</th><th>操作</th></tr>
+                            </thead>
+                            <tbody id="admin-user-table-body"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 设置面板 -->
+        <div id="settings-modal" class="modal">
+            <div class="modal-content">
+                <h3 data-i18n="settings.title">设置</h3>
+                <div class="setting-item">
+                    <span data-i18n="settings.theme">主题</span>
+                    <select id="theme-select">
+                        <option value="dark" data-i18n="settings.themeDark">深色</option>
+                        <option value="light" data-i18n="settings.themeLight">浅色</option>
+                        <option value="festival" data-i18n="settings.themeFestival">节日限定</option>
+                    </select>
+                </div>
+                <div class="setting-item">
+                    <span data-i18n="settings.refreshRate">行情刷新速度</span>
+                    <select id="refresh-rate">
+                        <option value="1000" data-i18n="settings.refresh1s">1秒</option>
+                        <option value="3000" selected data-i18n="settings.refresh3s">3秒</option>
+                        <option value="5000" data-i18n="settings.refresh5s">5秒</option>
+                    </select>
+                </div>
+                <div class="setting-item">
+                    <span data-i18n="settings.language">语言</span>
+                    <select id="language-select">
+                        <option value="zh-CN" data-i18n="settings.langZhCN">中文</option>
+                        <option value="en-US" data-i18n="settings.langEnUS">English</option>
+                    </select>
+                </div>
+                <div class="setting-item">
+                    <span data-i18n="settings.timeControl">时间控制</span>
+                    <div class="time-control-buttons">
+                        <button id="time-pause-btn" class="btn-secondary" title="暂停/继续游戏时间推进" data-i18n="settings.pause" data-i18n-title="settings.pauseTitle">暂停</button>
+                        <button id="time-skip-btn" class="btn-secondary" title="交易时段内跳至本轮结束前；非交易时间跳至下一交易时段开始前" data-i18n="settings.skip" data-i18n-title="settings.skipTitle">跳过</button>
+                    </div>
+                </div>
+                <button id="close-settings" class="btn-primary" data-i18n="common.close">关闭</button>
+            </div>
+        </div>
+
+        <!-- 密码修改面板 -->
+        <div id="change-password-modal" class="modal">
+            <div class="modal-content">
+                <h3 data-i18n="password.title">修改密码</h3>
+                <div class="form-group">
+                    <label for="current-password" data-i18n="password.current">当前密码</label>
+                    <input type="password" id="current-password" placeholder="请输入当前密码" data-i18n-placeholder="password.currentPlaceholder">
+                </div>
+                <div class="form-group">
+                    <label for="new-password" data-i18n="password.new">新密码</label>
+                    <input type="password" id="new-password" placeholder="请输入新密码（6-20位）" data-i18n-placeholder="password.newPlaceholder">
+                </div>
+                <div class="form-group">
+                    <label for="confirm-password" data-i18n="password.confirm">确认新密码</label>
+                    <input type="password" id="confirm-password" placeholder="请再次输入新密码" data-i18n-placeholder="password.confirmPlaceholder">
+                </div>
+                <div id="change-password-error" class="error-message" style="margin: 10px 0; color: #ff4757; font-size: 14px; display: none;"></div>
+                <div style="display: flex; gap: 10px; margin-top: 20px;">
+                    <button id="submit-password-change" class="btn-primary" data-i18n="password.submit">确认修改</button>
+                    <button id="cancel-password-change" class="btn-secondary" data-i18n="common.cancel">取消</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 注销账户确认面板 -->
+        <div id="delete-account-modal" class="modal">
+            <div class="modal-content">
+                <h3 style="color:#ff4757;">⚠️ 注销账户确认</h3>
+                <p style="color:var(--text-secondary); margin:12px 0; font-size:13px; line-height:1.6;">
+                    注销账户为不可逆操作。注销后，您的虚拟资金、策略配置与交易记录将被彻底清除。<br>
+                    <span style="color:#faad14;">⚠️ 提示：若账户内尚有多头或空头持仓，必须先全部清仓方可注销。</span>
+                </p>
+                <div class="form-group">
+                    <label for="delete-account-password">请输入登录密码以确认身份</label>
+                    <input type="password" id="delete-account-password" placeholder="请输入密码">
+                </div>
+                <div id="delete-account-error" class="error-message" style="margin: 10px 0; color: #ff4757; font-size: 14px; display: none;"></div>
+                <div style="display: flex; gap: 10px; margin-top: 20px;">
+                    <button id="submit-delete-account" class="btn-primary btn-danger">确认永久注销</button>
+                    <button id="cancel-delete-account" class="btn-secondary" data-i18n="common.cancel">取消</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 调试面板 -->
+        <div id="debug-modal" class="modal">
+            <div class="modal-content debug-content">
+                <h3 data-i18n="debug.title">🔧 调试面板</h3>
+                <div class="debug-section">
+                    <h4 data-i18n="debug.fundModify">资金修改</h4>
+                    <input type="number" id="debug-fund" placeholder="输入新资金" data-i18n-placeholder="debug.fundPlaceholder">
+                    <button id="set-fund-btn" class="btn-secondary" data-i18n="debug.setFund">设置资金</button>
+                </div>
+                <div class="debug-section">
+                    <h4 data-i18n="debug.achievementUnlock">成就解锁</h4>
+                    <button id="unlock-all-achievements-btn" class="btn-secondary btn-warning" data-i18n="debug.unlockAll">🏆 解锁全部成就</button>
+                    <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border-color);">
+                        <select id="debug-achievement"></select>
+                        <button id="unlock-achievement-btn" class="btn-secondary" data-i18n="debug.selectAchievement">解锁单个成就</button>
+                    </div>
+                    <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border-color);">
+                        <button id="clear-all-achievements-btn" class="btn-secondary btn-danger" data-i18n="debug.clearAll">❌ 取消解锁全部成就</button>
+                        <button id="clear-selected-achievements-btn" class="btn-secondary btn-danger" style="margin-top: 8px;" data-i18n="debug.clearSelected">❌ 选择取消解锁成就</button>
+                    </div>
+                </div>
+                <div class="debug-section">
+                    <h4 data-i18n="debug.timeControl">时间控制</h4>
+                    <div class="time-control-display">
+                        <span><span data-i18n="debug.currentTime">当前时间: </span><span id="debug-current-time">--:--</span></span>
+                        <span><span data-i18n="debug.status">状态: </span><span id="debug-time-status">--</span></span>
+                    </div>
+                    <div class="time-input-row">
+                        <input type="number" id="debug-hour" placeholder="时" min="0" max="23" class="time-input" data-i18n-placeholder="debug.hourPlaceholder">
+                        <span>:</span>
+                        <input type="number" id="debug-minute" placeholder="分" min="0" max="59" class="time-input" data-i18n-placeholder="debug.minutePlaceholder">
+                    </div>
+                    <div class="time-presets">
+                        <button id="time-preset-morning-open" class="btn-secondary btn-small" data-i18n="debug.presetMorningOpen">☀️ 上午开盘 (9:30)</button>
+                        <button id="time-preset-early" class="btn-secondary btn-small" data-i18n="debug.presetEarly">🌅 早起的鸟儿 (9:35)</button>
+                        <button id="time-preset-morning-close" class="btn-secondary btn-small" data-i18n="debug.presetMorningClose">⏰ 上午收盘前 (11:25)</button>
+                        <button id="time-preset-late" class="btn-secondary btn-small" data-i18n="debug.presetLate">🍱 午间休市 (11:35)</button>
+                        <button id="time-preset-afternoon" class="btn-secondary btn-small" data-i18n="debug.presetAfternoon">🌤️ 下午开盘 (13:00)</button>
+                        <button id="time-preset-close" class="btn-secondary btn-small" data-i18n="debug.presetClose">🌆 收盘前 (14:55)</button>
+                        <button id="time-preset-random" class="btn-secondary btn-small" data-i18n="debug.presetRandom">🎲 随机时间</button>
+                    </div>
+                    <button id="set-time-btn" class="btn-secondary" data-i18n="debug.setTime">设置时间</button>
+                </div>
+                <div class="debug-section">
+                    <h4 data-i18n="debug.marketControl">行情控制</h4>
+                    <button id="reset-market-btn" class="btn-secondary" data-i18n="debug.resetMarket">重置行情</button>
+                    <button id="clear-game-btn" class="btn-danger" data-i18n="debug.clearGame">清空本局</button>
+                </div>
+                <button id="close-debug" class="btn-primary" data-i18n="common.close">关闭</button>
+            </div>
+        </div>
+
+        <!-- 成就弹窗 -->
+        <div id="achievement-popup" class="achievement-popup">
+            <div class="achievement-content">
+                <div class="achievement-icon">🏆</div>
+                <div class="achievement-info">
+                    <h4 data-i18n="achievement.unlocked">解锁成就</h4>
+                    <p id="achievement-name"></p>
+                </div>
+                <button id="view-achievement-btn" class="btn-primary btn-small" data-i18n="achievement.view">查看</button>
+                <button id="poster-achievement-btn" class="btn-text btn-small" data-i18n="achievement.poster">海报</button>
+            </div>
+        </div>
+
+        <!-- 通用输入弹窗（#23：导入密码必须遮蔽输入，不能再用 window.prompt） -->
+        <div id="input-prompt-modal" class="modal">
+            <div class="modal-content">
+                <h3 id="input-prompt-title" data-i18n="prompt.title">请输入</h3>
+                <p id="input-prompt-message" class="input-prompt-message"></p>
+                <input type="text" id="input-prompt-field">
+                <div id="input-prompt-error" class="form-error"></div>
+                <div class="modal-actions">
+                    <button id="input-prompt-cancel" class="btn-secondary" data-i18n="common.cancel">取消</button>
+                    <button id="input-prompt-confirm" class="btn-primary" data-i18n="common.confirm">确认</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 新手引导 -->
+        <div id="tutorial-overlay" class="tutorial-overlay">
+            <div class="tutorial-highlight"></div>
+            <div class="tutorial-arrow"></div>
+            <div class="tutorial-tooltip">
+                    <div class="tutorial-header">
+                        <span class="tutorial-step-indicator"><span data-i18n="tutorial.step">步骤 </span><span id="tutorial-step-num">1</span>/<span id="tutorial-step-total">9</span></span>
+                    </div>
+                <p id="tutorial-text"></p>
+                <div class="tutorial-actions">
+                    <button id="skip-tutorial" class="btn-text" data-i18n="tutorial.skip">跳过教程</button>
+                    <button id="next-tutorial" class="btn-primary">下一步</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 海报生成画布 -->
+        <canvas id="poster-canvas" style="display:none;"></canvas>
+    </div>
+
+    <!-- 脚本加载顺序：成就配置 → i18n 核心 → 业务模块 -->
+    <script src="achievements.js"></script>
+    <script src="locales/zh-CN.js"></script>
+    <script src="locales/en-US.js"></script>
+    <script src="i18n.js"></script>
+    <script src="game.js"></script>
+    <div id="toast-container" class="toast-container"></div>
+</body>
+</html>
